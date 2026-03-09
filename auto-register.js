@@ -10,6 +10,7 @@ const CONFIG = {
     PASSWORD: 'Kaih.kaih.999',
     MAIL_FILE: path.join(__dirname, 'email.txt'),
     RESULT_FILE: path.join(__dirname, 'ketqua.txt'),
+    LINK_FILE: path.join(__dirname, 'link.txt'),
 };
 
 // Đảm bảo file tồn tại
@@ -66,6 +67,17 @@ function askUser(question) {
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Log URL sau mỗi bước vào link.txt
+async function logPageURL(page, stepName) {
+    try {
+        const url = page.url();
+        const timestamp = new Date().toLocaleTimeString('vi-VN');
+        const logLine = `[${timestamp}] ${stepName}: ${url}\n`;
+        fs.appendFileSync(CONFIG.LINK_FILE, logLine, 'utf8');
+        console.log(`   🔗 URL: ${url}`);
+    } catch (e) { }
 }
 
 // ============== HELPER ==============
@@ -201,7 +213,7 @@ async function waitAndSelect(page, selector, value, label, maxRetries = 5) {
 }
 
 // Chờ dropdown có options (AngularJS dependent fields cần thời gian load)
-async function waitForDropdownOptions(page, selector, label, maxWaitMs = 30000) {
+async function waitForDropdownOptions(page, selector, label, maxWaitMs = 30000, pollIntervalMs = 400) {
     const startTime = Date.now();
     while (Date.now() - startTime < maxWaitMs) {
         try {
@@ -221,7 +233,7 @@ async function waitForDropdownOptions(page, selector, label, maxWaitMs = 30000) 
                 return true;
             }
         } catch (_) { }
-        await sleep(1000);
+        await sleep(pollIntervalMs);
     }
     console.log(`   ⚠️ ${label}: chờ options timeout`);
     return false;
@@ -407,30 +419,30 @@ async function step3_ProgramInfo(page) {
     try {
         await page.waitForSelector('select[name^="MilitaryService__c"], input[name^="MilitaryService__c"]', { state: 'visible', timeout: 60000 });
         console.log('   ✅ Đã tải form BƯỚC 3');
-        await sleep(1000);
+        await sleep(500);
 
         await waitAndSelect(page, 'select[name^="MilitaryService__c"]', 'No', 'Military: No');
         await waitAndSelect(page, 'select[name^="CitizenshipStatus__c"]', 'US Citizen', 'Citizenship: US Citizen');
 
         // Dependent: StudentType phụ thuộc Citizenship
-        await waitForDropdownOptions(page, 'select[name^="StudentType__c"]', 'Student Type');
+        await waitForDropdownOptions(page, 'select[name^="StudentType__c"]', 'Student Type', 20000, 300);
         await waitAndSelect(page, 'select[name^="StudentType__c"]', '0011N00001GsdxRQAR', 'Student Type: Undergraduate');
 
-        // Dependent: Location phụ thuộc StudentType
-        await waitForDropdownOptions(page, 'select[name="Location__c209ffed61a"]', 'Location');
-        await waitAndSelect(page, 'select[name="Location__c209ffed61a"]', '0011N00001djSu9QAE', 'Location: Online & Campus Centers');
+        // Dependent: Location phụ thuộc StudentType (dùng name^= vì suffix thay đổi theo phiên)
+        await waitForDropdownOptions(page, 'select[name^="Location__c"]', 'Location', 20000, 300);
+        await waitAndSelect(page, 'select[name^="Location__c"]', '0011N00001djSu9QAE', 'Location: Online & Campus Centers');
 
         await waitAndSelect(page, 'select[name^="CampusCenterLocationPL__c"]', 'Online', 'Campus: Online');
 
         // Dependent: ProgramType phụ thuộc Location
-        await waitForDropdownOptions(page, 'select[name^="ProgramType__c"]', 'Program Type');
+        await waitForDropdownOptions(page, 'select[name^="ProgramType__c"]', 'Program Type', 20000, 300);
         await waitAndSelect(page, 'select[name^="ProgramType__c"]', '0011N00001GsdzmQAB', 'Program Type: Certificate');
 
         // Dependent: CampusProgram phụ thuộc ProgramType
-        await waitForDropdownOptions(page, 'select[name^="CampusProgram__c"]', 'Program');
+        await waitForDropdownOptions(page, 'select[name^="CampusProgram__c"]', 'Program', 20000, 300);
         await waitAndSelect(page, 'select[name^="CampusProgram__c"]', 'a1i6O000004BKmhQAG', 'Program: Certificate in Cybersecurity');
 
-        await waitForDropdownOptions(page, 'select[name^="Term__c"]', 'Term');
+        await waitForDropdownOptions(page, 'select[name^="Term__c"]', 'Term', 20000, 300);
         await waitAndSelect(page, 'select[name^="Term__c"]', 'a0CUl00000dCdPUMA0', 'Term: Fall 2026');
 
         await waitAndClick(page, 'button:has-text("Save & Continue")', 'Save & Continue');
@@ -454,52 +466,56 @@ async function step4_PersonalInfo(page, addressInfo, ssn, birthDate) {
         await waitAndSelect(page, 'select[name^="OtherStatePL__c"]', addressInfo.state, `State: ${addressInfo.state}`);
 
         // Zip Code
-        await waitAndFill(page, 'input[name^="OtherZip__c"]', addressInfo.zip, 'Zip Code');
-
-        // County (dropdown - có thể không required, thử điền)
         try {
-            await waitAndFill(page, 'input[name^="OtherCounty__c"]', addressInfo.county || 'Los Angeles', 'County');
-        } catch (e) {
-            // County có thể là dropdown hoặc text field
-            try {
-                await waitAndSelect(page, 'select[name^="OtherCounty__c"]', addressInfo.county || 'Los Angeles', 'County');
-            } catch (e2) { }
-        }
+            await waitAndFill(page, 'input[name^="OtherZipCode__c"]', addressInfo.zip || '90210', 'Zip Code');
+        } catch(e) { }
 
         await waitAndSelect(page, 'select[name^="IsthisAddressyourMailingAddress__c"]', 'Yes', 'Is Mailing: Yes');
 
-        // SSN - type ENCRYPTEDSTRING, dùng id selector
+        // SSN - dùng placeholder="XXX-XX-XXXX" vì id/name suffix thay đổi mỗi lần render
         try {
-            await page.waitForSelector('#encryptedInputId__00c463356d, input[name^="hed__Social_Security_Number__c"]', { state: 'visible', timeout: 20000 });
+            await page.waitForSelector('input[placeholder="XXX-XX-XXXX"]', { state: 'visible', timeout: 20000 });
             await sleep(500);
-            // Thử bằng id trước
-            const ssnField = await page.$('#encryptedInputId__00c463356d') || await page.$('input[name^="hed__Social_Security_Number__c"]');
-            if (ssnField) {
-                await ssnField.fill(ssn);
-                console.log(`   ✅ SSN: ${ssn}`);
-            }
+            await page.fill('input[placeholder="XXX-XX-XXXX"]', ssn);
+            console.log(`   ✅ SSN: ${ssn}`);
         } catch (e) {
             // Fallback: dùng aria-label
             try {
                 await page.fill('input[aria-label*="Social Security Number"]', ssn);
                 console.log(`   ✅ SSN (fallback): ${ssn}`);
             } catch (e2) {
-                console.log('   ⚠️ Không điền được SSN');
+                console.log('   ⚠️ Không điền được SSN - FIELD BẮT BUỘC!');
             }
         }
         await sleep(500);
 
-        // Birth Date
-        await waitAndFill(page, 'input[name^="Birthdate"]', birthDate, 'Birth Date');
+        // Birth Date - dùng placeholder
+        try {
+            await page.waitForSelector('input[placeholder="MM/DD/YYYY"]', { state: 'visible', timeout: 10000 });
+            await page.fill('input[placeholder="MM/DD/YYYY"]', birthDate);
+            console.log(`   ✅ Birth Date: ${birthDate}`);
+        } catch (e) {
+            await waitAndFill(page, 'input[name^="Birthdate"]', birthDate, 'Birth Date');
+        }
         // Đóng date picker bằng Escape
         await page.keyboard.press('Escape');
         await sleep(500);
 
         await waitAndSelect(page, 'select[name^="hed__Country_of_Origin__c"]', 'United States of America', 'Country of Origin: US');
 
-        // Checkbox White
+        // Checkbox White (Ethnicity) - dùng aria-label chính xác từ quy trình
         try {
-            await page.click('input[aria-label*="White"]');
+            await page.evaluate(() => {
+                const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+                for (const cb of checkboxes) {
+                    const label = cb.getAttribute('aria-label') || '';
+                    if (label.includes('Value WH') || label.includes('White')) {
+                        cb.click();
+                        return true;
+                    }
+                }
+                return false;
+            });
             console.log('   ✅ Đã tích chọn White');
         } catch (e) {
             console.log('   ⚠️ Không tích được White');
@@ -519,9 +535,29 @@ async function step4_PersonalInfo(page, addressInfo, ssn, birthDate) {
 async function step5_Education(page) {
     console.log('\n📝 BƯỚC 5: Education History...');
     try {
-        await page.waitForSelector('.slds-pill__label, input.elcn-query-input, select[name^="Didyougraduate__c"]', { state: 'visible', timeout: 60000 });
+        // Chờ form Education thực sự load: ưu tiên field đặc trưng của bước 5 (tránh nhầm với nút chung)
+        const formSelectors = [
+            'select[name^="Didyougraduate__c"]',
+            'input.elcn-query-input',
+            '.slds-pill__label',
+            '.slds-pill.requiredBar'
+        ];
+        let formReady = false;
+        for (const sel of formSelectors) {
+            try {
+                await page.waitForSelector(sel, { state: 'visible', timeout: 25000 });
+                formReady = true;
+                break;
+            } catch (_) {
+                continue;
+            }
+        }
+        if (!formReady) {
+            console.log('   ⚠️ Không thấy form Step 5 hoặc lỗi timeouts');
+            return;
+        }
+        await sleep(2000);
         console.log('   ✅ Đã tải form BƯỚC 5');
-        await sleep(1000);
 
         const isInput = await page.$('input.elcn-query-input');
         if (isInput) {
@@ -563,17 +599,30 @@ async function step6_FundingAndWork(page) {
     console.log('\n📝 BƯỚC 6: Funding & Work Info...');
 
     try {
-        await page.waitForSelector('select[name^="DependentofaFederalEmployee__c"], input[aria-label*="Private Loan"]', { state: 'visible', timeout: 60000 });
+        // Chờ form Funding xuất hiện (timeout ngắn để không block 60s khi đang ở trang Education)
+        const fundingFormSelector = 'select[name^="DependentofaFederalEmployee__c"], input[aria-label*="Private Loan"], input[aria-label*="fund your education"]';
+        let hasForm = false;
+        try {
+            await page.waitForSelector(fundingFormSelector, { state: 'visible', timeout: 25000 });
+            hasForm = true;
+        } catch (_) {
+            const any = await page.$('select[name^="DependentofaFederalEmployee__c"], input[aria-label*="Private Loan"]');
+            if (any) hasForm = true;
+        }
+        if (!hasForm) {
+            console.log('   ⏩ Bỏ qua BƯỚC 6 (không có field tương ứng – có thể đang ở trang Education)');
+            return;
+        }
+        await sleep(2000);
         console.log('   ✅ Đã tải form BƯỚC 6');
-        await sleep(1000);
 
         // Tích Private Loan(s)
         try {
-            await page.click('input[aria-label*="Private Loan"]');
-            console.log('   ✅ Đã tích: Private Loan(s)');
-        } catch (e) {
-            // Fallback: tìm span có text Private Loan(s)
-            try {
+            const privateLoan = await page.$('input[aria-label*="Private Loan"], input[aria-label*="fund your education"]');
+            if (privateLoan) {
+                await privateLoan.click();
+                console.log('   ✅ Đã tích: Private Loan(s)');
+            } else {
                 await page.evaluate(() => {
                     const spans = Array.from(document.querySelectorAll('span'));
                     const target = spans.find(s => s.textContent.trim() === 'Private Loan(s)');
@@ -582,12 +631,23 @@ async function step6_FundingAndWork(page) {
                     }
                 });
                 console.log('   ✅ Đã tích: Private Loan(s) (fallback)');
-            } catch (e2) {
-                console.log('   ⚠️ Không tích được Private Loan(s)');
             }
+        } catch (e) {
+            console.log('   ⚠️ Không tích được Private Loan(s)');
         }
 
-        await waitAndSelect(page, 'select[name^="DependentofaFederalEmployee__c"]', 'No', 'Federal Employee: No');
+        // Federal Employee: dùng name^= hoặc aria-label phòng name động
+        const federalSel = 'select[name^="DependentofaFederalEmployee__c"]';
+        const federalAria = 'select[aria-label*="federal employee"], select[aria-label*="dependent of a federal"]';
+        try {
+            await waitAndSelect(page, federalSel, 'No', 'Federal Employee: No');
+        } catch (e1) {
+            try {
+                await waitAndSelect(page, federalAria, 'No', 'Federal Employee: No (aria)');
+            } catch (e2) {
+                console.log('   ⚠️ Không chọn được Federal Employee');
+            }
+        }
         await waitAndSelect(page, 'select[name^="SponsorsMilitaryService__c"]', 'No', 'Sponsor Military: No');
         await waitAndSelect(page, 'select[name^="CurrentlyEmployed__c"]', 'No', 'Currently Employed: No');
 
@@ -602,9 +662,14 @@ async function step7_FamilyInfo(page) {
     console.log('\n📝 BƯỚC 7: Family Info...');
 
     try {
-        await page.waitForSelector('select[name^="Dideitherparentattendcollege__c"]', { state: 'visible', timeout: 60000 });
+        await page.waitForSelector('button:has-text("Save & Continue"), button:has-text("Submit Your Application")', { state: 'visible', timeout: 60000 });
+        await sleep(2000);
+        const hasForm = await page.$('select[name^="Dideitherparentattendcollege__c"]');
+        if (!hasForm) {
+            console.log('   ⏩ Bỏ qua BƯỚC 7 (không có field tương ứng)');
+            return;
+        }
         console.log('   ✅ Đã tải form BƯỚC 7');
-        await sleep(1000);
 
         await waitAndSelect(page, 'select[name^="Dideitherparentattendcollege__c"]', 'No', 'Parent Attend College: No');
         await waitAndSelect(page, 'select[name^="FamilywParkDegree__c"]', 'No', 'Family Park Degree: No');
@@ -621,17 +686,22 @@ async function step8_TermsAndSubmit(page) {
     console.log('\n📝 BƯỚC 8: Terms & Submit...');
 
     try {
+        await page.waitForSelector('button:has-text("Save & Continue"), button:has-text("Submit Your Application")', { state: 'visible', timeout: 60000 });
+        await sleep(2000);
         // Tích Terms & Conditions
-        try {
-            await page.waitForSelector('input[name^="TermsandConditionsAgreement__c"]', { state: 'visible', timeout: 60000 });
-            await page.click('input[name^="TermsandConditionsAgreement__c"]');
-            console.log('   ✅ Đã tích Terms & Conditions');
-        } catch (e) {
-            console.log('   ⚠️ Không tích được Terms & Conditions');
+        const hasForm = await page.$('input[name^="TermsandConditionsAgreement__c"]');
+        if (!hasForm) {
+            console.log('   ⏩ Bỏ qua Terms (không có checkbox)');
+        } else {
+            try {
+                await page.click('input[name^="TermsandConditionsAgreement__c"]');
+                console.log('   ✅ Đã tích Terms & Conditions');
+            } catch (e) {
+                console.log('   ⚠️ Không tích được Terms & Conditions');
+            }
+            await waitAndClick(page, 'button:has-text("Save & Continue")', 'Save & Continue');
+            await sleep(5000);
         }
-
-        await waitAndClick(page, 'button:has-text("Save & Continue")', 'Save & Continue');
-        await sleep(5000);
 
         // Submit Your Application (nút cuối cùng)
         try {
@@ -711,14 +781,32 @@ async function processOneEmail(browser, email, index, total) {
     const ssn = gen.generateSSN();
 
     try {
+        // Ghi header vào link.txt cho email này
+        fs.appendFileSync(CONFIG.LINK_FILE, `\n=== ${email} (${new Date().toLocaleString('vi-VN')}) ===\n`, 'utf8');
+
         await step1_Registration(page, email, fullNameObj, phone);
+        await logPageURL(page, 'Sau Bước 1 - Registration');
+
         await step2_StartApplication(page);
+        await logPageURL(page, 'Sau Bước 2 - Start Application');
+
         await step3_ProgramInfo(page);
+        await logPageURL(page, 'Sau Bước 3 - Program Info');
+
         await step4_PersonalInfo(page, addressInfo, ssn, birthDate);
+        await logPageURL(page, 'Sau Bước 4 - Personal Info');
+
         await step5_Education(page);
+        await logPageURL(page, 'Sau Bước 5 - Education');
+
         await step6_FundingAndWork(page);
+        await logPageURL(page, 'Sau Bước 6 - Funding & Work');
+
         await step7_FamilyInfo(page);
+        await logPageURL(page, 'Sau Bước 7 - Family Info');
+
         await step8_TermsAndSubmit(page);
+        await logPageURL(page, 'Sau Bước 8 - Submit');
 
         markEmailUsed(email);
         const fullName = `${fullNameObj.firstName} ${fullNameObj.lastName}`;
