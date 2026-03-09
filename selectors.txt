@@ -1,0 +1,93 @@
+truy cập link: https://parkuniversity.my.site.com/ApplicationPortal/apex/ERx_Forms__PageMaker?pageId=Registration
+- nhập random tên US
+  -> Selector: [name="FirstName0060d3fb10"]
+- nhập email lấy từ email.txt
+  -> Selector: [name="Email2073cd369f"]
+- random sdt US
+  -> Selector: [name="MobilePhone300966fc44"]
+- nhập pass "Kaih.kaih.999"
+  -> Selector: [name="Password40876a9a67"]
+- chọn online
+  -> Selector: [name="Location__c600daa4237"]
+- tích ô
+  -> Selector: class="ng-binding ng-scope"
+- đợi xác minh capcha
+  -> Selector: class="recaptcha-checkbox-checkmark"
+- kich submit
+  -> Selector: class="slds-button slds-button--brand buttonCss allowEnter  ng-binding ng-scope"
+- đợi load
+- kich
+  -> Selector: class="button"
+- chọn no
+  -> Selector: [name="MilitaryService__c40a982cd1f"]
+- chọn US citizen
+  -> Selector: [name="CitizenshipStatus__c5096ea5e2e"]
+-chọn undergraduate
+  -> Selector: [name="StudentType__c0034e4c2b6"]
+- chọn Online & Campus Centers
+  -> Selector: [name="Location__c209ffed61a"]
+- chọn online
+  -> Selector: [name="CampusCenterLocationPL__c501b0aa3a8"]
+- chọn Certificate
+  -> Selector: [name="ProgramType__c6090655417"]
+- chọn Certificate in Cybersecurity
+  -> Selector: [name="CampusProgram__c8096c0529d"]
+- chọn Fall 2026 (August 17 start)
+  -> Selector: [name="Term__c90d4ecee04"]
+- kich
+  -> Selector: class="slds-button slds-button--brand buttonCss allowEnter  ng-binding ng-scope"
+- đợi trang load
+- chọn US
+  -> Selector: [name="OtherCountry__c00e03945b9"]
+- random địa chỉ US
+  -> Selector: [name="OtherAddressLine1__c10242ec737"]
+- chọn yes
+  -> Selector: [name="IsthisAddressyourMailingAddress__c800ae6ebb9"]
+- random ssn
+  -> Selector: [name="hed__Social_Security_Number__c00c463356d"]
+- random
+  -> Selector: [name="Birthdate2005a5c7b9"]
+- chọn United States of America
+  -> Selector: [name="hed__Country_of_Origin__c3078293f53"]
+- tích white
+  -> Selector: class="false &amp;&amp; fieldInfo.requiredSymbol != '*' ? 'requiredBar' : ''"
+- chọn Hispanic or Latino
+  -> Selector: [name="HispanicorLatino__c50e90ab917"]
+- chọn Female/Woman
+  -> Selector: [name="hed__Gender__c603be798cd"]
+- kich
+  -> Selector: class="slds-button slds-button--brand buttonCss allowEnter  ng-binding ng-scope"
+- nhập random tên trường và chọn trường xuất hiện ở gợi ý
+  -> Selector: class="slds-pill requiredBar"
+- chọn No
+  -> Selector: [name="Didyougraduate__c5013e6902c"]
+- chọn No
+  -> Selector: [name="Areyoucurrentlyenrolled__c706bfca2a9"]
+- nhập 4
+  -> Selector: [name="EnrollmentrxRx__GPA__c10ce79edf0"]
+- chọn no
+  -> Selector: [name="CompleteGEDHiSetTASCorEquivalent__c305d5f2775"]
+- chọn no
+  -> Selector: [name="DualCreditEnrollmentCompletion__c904211dc4d"]
+- chọn No
+  -> Selector: [name="PreviousCollegeUniversityExperience__c0031ad27b9"]
+- kich
+  -> Selector: class="slds-button slds-button--brand buttonCss allowEnter  ng-binding ng-scope"
+- chọn
+  -> Selector: class="true &amp;&amp; fieldInfo.requiredSymbol != '*' ? 'requiredBar' : ''"
+- chọn No
+  -> Selector: [name="DependentofaFederalEmployee__c20f3253dd4"]
+- kich
+  -> Selector: class="slds-button slds-button--brand buttonCss allowEnter  ng-binding ng-scope"
+- chọn No
+  -> Selector: [name="Dideitherparentattendcollege__c10ab462a0f"]
+- kich
+  -> Selector: class="slds-button slds-button--brand buttonCss allowEnter  ng-binding ng-scope"
+- tích chọn
+  -> Selector: [name="TermsandConditionsAgreement__c104896a676"]
+- kich
+  -> Selector: class="slds-button slds-button--brand buttonCss allowEnter  ng-binding ng-scope"
+- kich
+  -> Selector: class="slds-button slds-button--brand buttonCss allowEnter  ng-binding ng-scope"
+- xóa lịch sử dữ liệu trình duyệt ctrl H
+  -> Selector: class="action-button"
